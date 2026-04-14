@@ -4,37 +4,47 @@ document.addEventListener('DOMContentLoaded', function() {
   const prevMonthBtn = document.getElementById('prev-month');
   const nextMonthBtn = document.getElementById('next-month');
   const todayBtn = document.getElementById('today-btn');
-  const eventPanel = document.getElementById('event-panel');
   const eventDateEl = document.getElementById('event-date');
   const eventListEl = document.getElementById('event-list');
+  const addPillBtn = document.getElementById('add-pill-btn');
+  const pillNameInput = document.getElementById('pill-name');
+  const pillTimeInput = document.getElementById('pill-time');
+  const pillDosageInput = document.getElementById('pill-dosage');
   
   let currentDate = new Date();
   let selectedDate = null;
   
-  // Sample events data
-  const events = {
-    '2025-9-15': [
-      { time: '10:00 AM', text: 'Team meeting' },
-      { time: '02:30 PM', text: 'Project review' }
-    ],
-    '2025-9-20': [
-      { time: '11:00 AM', text: 'Doctor appointment' }
-    ],
-    '2025-9-25': [
-      { time: '07:00 PM', text: 'Birthday party' },
-      { time: '09:00 PM', text: 'Dinner with friends' }
-    ],
-    '2025-10-2': [
-      { time: '03:00 PM', text: 'Conference call' }
-    ],
-    '2025-10-10': [
-      { time: 'All day', text: 'Project deadline' }
-    ],
-    '2025-10-18': [
-      { time: '12:00 PM', text: 'Lunch with client' },
-      { time: '04:00 PM', text: 'Product demo' }
-    ]
-  };
+  // Load pills from localStorage or use default
+  let pills = loadPills();
+  
+  // Sample default pills if empty
+  if (Object.keys(pills).length === 0) {
+    pills = {
+      '2025-9-15': [
+        { name: 'Aspirin', time: '08:00', dosage: '100', taken: false },
+        { name: 'Vitamin D', time: '20:00', dosage: '2000', taken: false }
+      ],
+      '2025-9-20': [
+        { name: 'Lisinopril', time: '09:00', dosage: '10', taken: false }
+      ],
+      '2025-9-25': [
+        { name: 'Metformin', time: '19:00', dosage: '500', taken: false },
+        { name: 'Aspirin', time: '08:00', dosage: '100', taken: false }
+      ]
+    };
+    savePills();
+  }
+  
+  // Save pills to localStorage
+  function savePills() {
+    localStorage.setItem('pills', JSON.stringify(pills));
+  }
+  
+  // Load pills from localStorage
+  function loadPills() {
+    const saved = localStorage.getItem('pills');
+    return saved ? JSON.parse(saved) : {};
+  }
   
   // Render calendar
   function renderCalendar() {
@@ -73,9 +83,9 @@ document.addEventListener('DOMContentLoaded', function() {
     for (let x = firstDayIndex; x > 0; x--) {
       const prevDate = prevLastDay.getDate() - x + 1;
       const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${prevDate}`;
-      const hasEvent = events[dateKey] !== undefined;
+      const hasPill = pills[dateKey] !== undefined;
       
-      days += `<div class="day other-month${hasEvent ? ' has-events' : ''}">${prevDate}</div>`;
+      days += `<div class="day other-month${hasPill ? ' has-events' : ''}">${prevDate}</div>`;
     }
     
     // Current month days
@@ -87,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
       );
       
       const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth() + 1}-${i}`;
-      const hasEvent = events[dateKey] !== undefined;
+      const hasPill = pills[dateKey] !== undefined;
       
       let dayClass = 'day';
       
@@ -108,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function() {
         dayClass += ' selected';
       }
       
-      if (hasEvent) {
+      if (hasPill) {
         dayClass += ' has-events';
       }
       
@@ -118,9 +128,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Next month days
     for (let j = 1; j <= nextDays; j++) {
       const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth() + 2}-${j}`;
-      const hasEvent = events[dateKey] !== undefined;
+      const hasPill = pills[dateKey] !== undefined;
       
-      days += `<div class="day other-month${hasEvent ? ' has-events' : ''}">${j}</div>`;
+      days += `<div class="day other-month${hasPill ? ' has-events' : ''}">${j}</div>`;
     }
     
     daysEl.innerHTML = days;
@@ -132,13 +142,36 @@ document.addEventListener('DOMContentLoaded', function() {
         const [year, month, dayNum] = dateStr.split('-').map(Number);
         selectedDate = new Date(year, month - 1, dayNum);
         renderCalendar();
-        showEvents(dateStr);
+        showPills(dateStr);
       });
     });
   }
   
-  // Show events for selected date
-  function showEvents(dateStr) {
+  // Toggle pill taken status
+  function togglePillTaken(dateStr, pillIndex) {
+    if (pills[dateStr] && pills[dateStr][pillIndex]) {
+      pills[dateStr][pillIndex].taken = !pills[dateStr][pillIndex].taken;
+      savePills();
+      showPills(dateStr); // Refresh the display
+      renderCalendar(); // Update calendar indicators
+    }
+  }
+  
+  // Delete pill
+  function deletePill(dateStr, pillIndex) {
+    if (pills[dateStr]) {
+      pills[dateStr].splice(pillIndex, 1);
+      if (pills[dateStr].length === 0) {
+        delete pills[dateStr];
+      }
+      savePills();
+      showPills(dateStr);
+      renderCalendar();
+    }
+  }
+  
+  // Show pills for selected date
+  function showPills(dateStr) {
     const [year, month, day] = dateStr.split('-').map(Number);
     const dateObj = new Date(year, month - 1, day);
     const months = [
@@ -151,23 +184,113 @@ document.addEventListener('DOMContentLoaded', function() {
     
     eventDateEl.textContent = `${dayName}, ${months[dateObj.getMonth()]} ${day}, ${year}`;
     
-    // Clear previous events
+    // Clear previous pills
     eventListEl.innerHTML = '';
     
-    if (events[dateStr]) {
-      events[dateStr].forEach(event => {
-        const eventItem = document.createElement('div');
-        eventItem.className = 'event-item';
-        eventItem.innerHTML = `
-          <div class="event-color"></div>
-          <div class="event-time">${event.time}</div>
-          <div class="event-text">${event.text}</div>
+    if (pills[dateStr] && pills[dateStr].length > 0) {
+      pills[dateStr].forEach((pill, index) => {
+        const pillItem = document.createElement('div');
+        pillItem.className = `pill-item ${pill.taken ? 'pill-taken' : ''}`;
+        
+        // Format time for display
+        const displayTime = pill.time ? pill.time.substring(0, 5) : 'Not set';
+        
+        pillItem.innerHTML = `
+          <div class="pill-info">
+            <div class="pill-name">
+              <i class="fas fa-capsules"></i>
+              <strong>${escapeHtml(pill.name)}</strong>
+            </div>
+            <div class="pill-details">
+              <span class="pill-time"><i class="far fa-clock"></i> ${displayTime}</span>
+              ${pill.dosage ? `<span class="pill-dosage"><i class="fas fa-weight-hanging"></i> ${pill.dosage} mg</span>` : ''}
+            </div>
+          </div>
+          <div class="pill-actions">
+            <button class="pill-taken-btn ${pill.taken ? 'taken' : ''}" data-index="${index}">
+              <i class="fas ${pill.taken ? 'fa-check-circle' : 'fa-circle'}"></i>
+            </button>
+            <button class="pill-delete-btn" data-index="${index}">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </div>
         `;
-        eventListEl.appendChild(eventItem);
+        
+        eventListEl.appendChild(pillItem);
+      });
+      
+      // Add event listeners for buttons
+      document.querySelectorAll('.pill-taken-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const index = parseInt(btn.dataset.index);
+          togglePillTaken(dateStr, index);
+        });
+      });
+      
+      document.querySelectorAll('.pill-delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const index = parseInt(btn.dataset.index);
+          deletePill(dateStr, index);
+        });
       });
     } else {
-      eventListEl.innerHTML = '<div class="no-events">No events scheduled for this day</div>';
+      eventListEl.innerHTML = '<div class="no-events"><i class="fas fa-pills"></i> No pills scheduled for this day<br><small>Use the form above to add pills!</small></div>';
     }
+  }
+  
+  // Helper function to escape HTML
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  
+  // Add new pill
+  function addPill() {
+    if (!selectedDate) {
+      alert('Please select a date first!');
+      return;
+    }
+    
+    const pillName = pillNameInput.value.trim();
+    const pillTime = pillTimeInput.value;
+    const pillDosage = pillDosageInput.value.trim();
+    
+    if (!pillName) {
+      alert('Please enter pill name!');
+      return;
+    }
+    
+    if (!pillTime) {
+      alert('Please select time!');
+      return;
+    }
+    
+    const dateStr = `${selectedDate.getFullYear()}-${selectedDate.getMonth() + 1}-${selectedDate.getDate()}`;
+    
+    if (!pills[dateStr]) {
+      pills[dateStr] = [];
+    }
+    
+    pills[dateStr].push({
+      name: pillName,
+      time: pillTime,
+      dosage: pillDosage || '',
+      taken: false
+    });
+    
+    savePills();
+    
+    // Clear form
+    pillNameInput.value = '';
+    pillTimeInput.value = '';
+    pillDosageInput.value = '';
+    
+    // Refresh display
+    showPills(dateStr);
+    renderCalendar();
   }
   
   // Previous month
@@ -175,7 +298,8 @@ document.addEventListener('DOMContentLoaded', function() {
     currentDate.setMonth(currentDate.getMonth() - 1);
     renderCalendar();
     eventDateEl.textContent = 'Select a date';
-    eventListEl.innerHTML = '<div class="no-events">Select a date with events to view them here</div>';
+    eventListEl.innerHTML = '<div class="no-events">Select a date to add or view pills</div>';
+    selectedDate = null;
   });
   
   // Next month
@@ -183,7 +307,8 @@ document.addEventListener('DOMContentLoaded', function() {
     currentDate.setMonth(currentDate.getMonth() + 1);
     renderCalendar();
     eventDateEl.textContent = 'Select a date';
-    eventListEl.innerHTML = '<div class="no-events">Select a date with events to view them here</div>';
+    eventListEl.innerHTML = '<div class="no-events">Select a date to add or view pills</div>';
+    selectedDate = null;
   });
   
   // Today button
@@ -193,7 +318,21 @@ document.addEventListener('DOMContentLoaded', function() {
     renderCalendar();
     
     const dateStr = `${currentDate.getFullYear()}-${currentDate.getMonth() + 1}-${currentDate.getDate()}`;
-    showEvents(dateStr);
+    showPills(dateStr);
+  });
+  
+  // Add pill button
+  addPillBtn.addEventListener('click', addPill);
+  
+  // Allow Enter key in form
+  pillNameInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addPill();
+  });
+  pillTimeInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addPill();
+  });
+  pillDosageInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addPill();
   });
   
   // Initialize calendar
