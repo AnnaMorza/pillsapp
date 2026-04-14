@@ -172,74 +172,91 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Show pills for selected date
   function showPills(dateStr) {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    const dateObj = new Date(year, month - 1, day);
-    const months = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
-    ];
-    
-    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const dayName = dayNames[dateObj.getDay()];
-    
-    eventDateEl.textContent = `${dayName}, ${months[dateObj.getMonth()]} ${day}, ${year}`;
-    
-    // Clear previous pills
-    eventListEl.innerHTML = '';
-    
-    if (pills[dateStr] && pills[dateStr].length > 0) {
-      pills[dateStr].forEach((pill, index) => {
-        const pillItem = document.createElement('div');
-        pillItem.className = `pill-item ${pill.taken ? 'pill-taken' : ''}`;
-        
-        // Format time for display
-        const displayTime = pill.time ? pill.time.substring(0, 5) : 'Not set';
-        
-        pillItem.innerHTML = `
-          <div class="pill-info">
-            <div class="pill-name">
-              <i class="fas fa-capsules"></i>
-              <strong>${escapeHtml(pill.name)}</strong>
-            </div>
-            <div class="pill-details">
-              <span class="pill-time"><i class="far fa-clock"></i> ${displayTime}</span>
-              ${pill.dosage ? `<span class="pill-dosage"><i class="fas fa-weight-hanging"></i> ${pill.dosage} mg</span>` : ''}
-            </div>
-          </div>
-          <div class="pill-actions">
-            <button class="pill-taken-btn ${pill.taken ? 'taken' : ''}" data-index="${index}">
-              <i class="fas ${pill.taken ? 'fa-check-circle' : 'fa-circle'}"></i>
-            </button>
-            <button class="pill-delete-btn" data-index="${index}">
-              <i class="fas fa-trash-alt"></i>
-            </button>
-          </div>
-        `;
-        
-        eventListEl.appendChild(pillItem);
-      });
-      
-      // Add event listeners for buttons
-      document.querySelectorAll('.pill-taken-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const index = parseInt(btn.dataset.index);
-          togglePillTaken(dateStr, index);
-        });
-      });
-      
-      document.querySelectorAll('.pill-delete-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const index = parseInt(btn.dataset.index);
-          deletePill(dateStr, index);
-        });
-      });
-    } else {
-      eventListEl.innerHTML = '<div class="no-events"><i class="fas fa-pills"></i> No pills scheduled for this day<br><small>Use the form above to add pills!</small></div>';
-    }
-  }
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const dateObj = new Date(year, month - 1, day);
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
   
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const dayName = dayNames[dateObj.getDay()];
+  
+  eventDateEl.textContent = `${dayName}, ${months[dateObj.getMonth()]} ${day}, ${year}`;
+  
+  // Clear previous pills
+  eventListEl.innerHTML = '';
+  
+  if (pills[dateStr] && pills[dateStr].length > 0) {
+    // Сортируем таблетки по времени
+    const sortedPills = [...pills[dateStr]].sort((a, b) => {
+      if (!a.time) return 1;
+      if (!b.time) return -1;
+      return a.time.localeCompare(b.time);
+    });
+    
+    let currentHour = null;
+    
+    sortedPills.forEach((pill, sortedIndex) => {
+      const originalIndex = pills[dateStr].findIndex(p => p === pill);
+      const pillHour = pill.time ? pill.time.substring(0, 2) : null;
+      
+    //   if (pillHour && pillHour !== currentHour) {
+    //     currentHour = pillHour;
+    //     const hourSeparator = document.createElement('div');
+    //     hourSeparator.className = 'hour-separator';
+    //     hourSeparator.innerHTML = `<i class="fas fa-sun"></i> ${currentHour}:00 - ${parseInt(currentHour) + 1}:00`;
+    //     eventListEl.appendChild(hourSeparator);
+    //   }
+      
+      const pillItem = document.createElement('div');
+      pillItem.className = `pill-item ${pill.taken ? 'pill-taken' : ''}`;
+      const displayTime = pill.time ? pill.time.substring(0, 5) : 'Not set';
+      
+      pillItem.innerHTML = `
+        <div class="pill-info">
+          <div class="pill-name">
+            <i class="fas fa-capsules"></i>
+            <strong>${escapeHtml(pill.name)}</strong>
+          </div>
+          <div class="pill-details">
+            <span class="pill-time"><i class="far fa-clock"></i> ${displayTime}</span>
+            ${pill.dosage ? `<span class="pill-dosage"><i class="fas fa-weight-hanging"></i> ${pill.dosage} mg</span>` : ''}
+          </div>
+        </div>
+        <div class="pill-actions">
+          <button class="pill-taken-btn ${pill.taken ? 'taken' : ''}" data-index="${originalIndex}">
+            <i class="fas ${pill.taken ? 'fa-check-circle' : 'fa-circle'}"></i>
+          </button>
+          <button class="pill-delete-btn" data-index="${originalIndex}">
+            <i class="fas fa-trash-alt"></i>
+          </button>
+        </div>
+      `;
+      
+      eventListEl.appendChild(pillItem);
+    });
+    
+    document.querySelectorAll('.pill-taken-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const index = parseInt(btn.dataset.index);
+        togglePillTaken(dateStr, index);
+      });
+    });
+    
+    document.querySelectorAll('.pill-delete-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const index = parseInt(btn.dataset.index);
+        deletePill(dateStr, index);
+      });
+    });
+  } else {
+    eventListEl.innerHTML = '<div class="no-events"><i class="fas fa-pills"></i> No pills scheduled for this day<br><small>Use the form above to add pills!</small></div>';
+  }
+}
+  ////////////////////////////////////
   // Helper function to escape HTML
   function escapeHtml(text) {
     const div = document.createElement('div');
